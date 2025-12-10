@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>JA → EN Typing Game</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #202733;
+      color: #f4f4f4;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .game-container {
+      background: #2a3240;
+      border-radius: 16px;
+      padding: 24px 28px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+      width: 380px;
+      max-width: 90vw;
+      text-align: center;
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 1.4rem;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: #a5b0c3;
+      margin-bottom: 16px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+    }
+
+    .label {
+      color: #a5b0c3;
+    }
+
+    .value {
+      font-weight: bold;
+      color: #fff;
+    }
+
+    .word-display {
+      margin: 12px 0 16px;
+      font-size: 1.8rem;
+      font-weight: bold;
+      letter-spacing: 0.08em;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: none;
+      outline: none;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+
+    .message {
+      height: 20px;
+      margin-top: 8px;
+      font-size: 0.85rem;
+    }
+
+    .message.ok {
+      color: #8ee58e;
+    }
+
+    .message.error {
+      color: #ff7c7c;
+    }
+
+    .controls {
+      margin-top: 18px;
+    }
+
+    button {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      background: #4f9bff;
+      color: #fff;
+    }
+
+    button:disabled {
+      background: #5c6d8a;
+      cursor: default;
+    }
+
+    .small-note {
+      font-size: 0.75rem;
+      color: #9da8bc;
+      margin-top: 10px;
+      line-height: 1.4;
+    }
+
+    .highlight {
+      color: #ffde59;
+      font-weight: bold;
+    }
+
+    code {
+      font-size: 0.7rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <h1>JA → EN Typing Game</h1>
+    <div class="subtitle">
+      <strong>Shown:</strong> Japanese &nbsp; / &nbsp; <strong>Type:</strong> English (then press <b>Enter</b>)
+    </div>
+
+    <div class="info-row">
+      <div>
+        <span class="label">Time:</span>
+        <span class="value" id="timeValue">60</span>s
+      </div>
+      <div>
+        <span class="label">Score:</span>
+        <span class="value" id="scoreValue">0</span>
+      </div>
+    </div>
+
+    <div class="word-display" id="currentWord">---</div>
+
+    <input
+      type="text"
+      id="inputField"
+      autocomplete="off"
+      placeholder="type English here & press Enter"
+    />
+
+    <div id="message" class="message"></div>
+
+    <div class="controls">
+      <button id="startBtn">Start / Restart</button>
+    </div>
+
+    <div class="small-note">
+      Word pairs come from
+      <span class="highlight">?wordListParam=</span> in the URL.<br />
+      Format: <code>日本語:english</code> separated by commas.<br />
+      Example:<br />
+      <code>?wordListParam=犬:dog,猫:cat,魚:fish,家族:family,先生:teacher</code>
+    </div>
+  </div>
+
+  <script>
+    // Default JA → EN pairs if wordListParam is missing
+    const defaultPairs = [
+      { prompt: "犬",     answer: "dog" },
+      { prompt: "猫",     answer: "cat" },
+      { prompt: "魚",     answer: "fish" },
+      { prompt: "家族",   answer: "family" },
+      { prompt: "友だち", answer: "friend" },
+      { prompt: "先生",   answer: "teacher" },
+      { prompt: "生徒",   answer: "student" },
+      { prompt: "朝ごはん", answer: "breakfast" },
+      { prompt: "昼ごはん", answer: "lunch" },
+      { prompt: "晩ごはん", answer: "dinner" },
+      { prompt: "日曜日", answer: "Sunday" },
+      { prompt: "月曜日", answer: "Monday" },
+      { prompt: "火曜日", answer: "Tuesday" },
+      { prompt: "水曜日", answer: "Wednesday" },
+      { prompt: "木曜日", answer: "Thursday" },
+      { prompt: "金曜日", answer: "Friday" },
+      { prompt: "土曜日", answer: "Saturday" }
+    ];
+
+    const timeValue = document.getElementById("timeValue");
+    const scoreValue = document.getElementById("scoreValue");
+    const currentWordEl = document.getElementById("currentWord");
+    const inputField = document.getElementById("inputField");
+    const messageEl = document.getElementById("message");
+    const startBtn = document.getElementById("startBtn");
+
+    let pairs = [];
+    let currentPair = null;
+    let score = 0;
+    let timeLeft = 60;
+    let timerId = null;
+    let gameRunning = false;
+
+    // Read ?wordListParam=犬:dog,猫:cat,...
+    function getPairsFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const listParam = params.get("wordListParam");
+
+      if (!listParam) {
+        return defaultPairs;
+      }
+
+      const items = listParam
+        .split(",")
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      const parsed = items.map(item => {
+        const [left, right] = item.split(":");
+        if (!right) {
+          // If no colon, fall back to same for both (not ideal, but safe)
+          return { prompt: left, answer: left };
+        }
+        return { prompt: left, answer: right };
+      });
+
+      return parsed.length ? parsed : defaultPairs;
+    }
+
+    function pickRandomPair() {
+      if (pairs.length === 0) {
+        currentPair = null;
+        currentWordEl.textContent = "---";
+        return;
+      }
+      const idx = Math.floor(Math.random() * pairs.length);
+      currentPair = pairs[idx];
+      currentWordEl.textContent = currentPair.prompt; // show Japanese
+    }
+
+    function resetGameState() {
+      pairs = getPairsFromUrl();
+      score = 0;
+      timeLeft = 60;
+      scoreValue.textContent = score;
+      timeValue.textContent = timeLeft;
+      messageEl.textContent = "";
+      messageEl.className = "message";
+      pickRandomPair();
+      inputField.value = "";
+    }
+
+    function endGame() {
+      gameRunning = false;
+      clearInterval(timerId);
+      timerId = null;
+      messageEl.textContent = `Time's up! Final score: ${score}`;
+      messageEl.className = "message ok";
+      startBtn.disabled = false;
+    }
+
+    function startGame() {
+      resetGameState();
+      gameRunning = true;
+      startBtn.disabled = true;
+
+      timerId = setInterval(() => {
+        timeLeft--;
+        timeValue.textContent = timeLeft;
+        if (timeLeft <= 0) {
+          endGame();
+        }
+      }, 1000);
+
+      inputField.focus();
+    }
+
+    // Check input when user presses Enter
+    inputField.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && gameRunning && currentPair) {
+        const typed = inputField.value.trim();
+        if (!typed) return;
+
+        const typedLower = typed.toLowerCase();
+        const answerLower = currentPair.answer.toLowerCase();
+
+        if (typedLower === answerLower) {
+          score++;
+          scoreValue.textContent = score;
+          messageEl.textContent = "Good!";
+          messageEl.className = "message ok";
+        } else {
+          messageEl.textContent =
+            `Wrong: "${typed}" (correct: ${currentPair.answer})`;
+          messageEl.className = "message error";
+        }
+
+        inputField.value = "";
+        pickRandomPair();
+      }
+    });
+
+    startBtn.addEventListener("click", () => {
+      startGame();
+    });
+
+    // Initialize view (not running yet)
+    resetGameState();
+  </script>
+</body>
+</html>
