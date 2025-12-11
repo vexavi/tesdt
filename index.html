@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>１年生 vocab 12/12/2025</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #202733;
+      color: #f4f4f4;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .game-container {
+      background: #2a3240;
+      border-radius: 16px;
+      padding: 24px 28px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+      width: 420px;
+      max-width: 95vw;
+      text-align: center;
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 1.4rem;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: #a5b0c3;
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+    }
+
+    .label {
+      color: #a5b0c3;
+    }
+
+    .value {
+      font-weight: bold;
+      color: #fff;
+    }
+
+    .word-display {
+      margin: 12px 0 16px;
+      font-size: 1.9rem;
+      font-weight: bold;
+      letter-spacing: 0.06em;
+      line-height: 1.4;
+      word-break: keep-all;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: none;
+      outline: none;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+
+    .message {
+      min-height: 20px;
+      margin-top: 8px;
+      font-size: 0.85rem;
+    }
+
+    .message.ok {
+      color: #8ee58e;
+    }
+
+    .message.error {
+      color: #ff7c7c;
+    }
+
+    .controls {
+      margin-top: 18px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      background: #4f9bff;
+      color: #fff;
+    }
+
+    button:disabled {
+      background: #5c6d8a;
+      cursor: default;
+    }
+
+    .small-note {
+      font-size: 0.75rem;
+      color: #9da8bc;
+      margin-top: 10px;
+      line-height: 1.4;
+    }
+
+    .highlight {
+      color: #ffde59;
+      font-weight: bold;
+    }
+
+    code {
+      font-size: 0.7rem;
+    }
+
+    /* image area */
+    .feedback-image-wrapper {
+      margin-top: 10px;
+      min-height: 160px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .feedback-image {
+      max-width: 100%;
+      max-height: 160px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <h1>１年生 vocab 12/12/2025</h1>
+    <div class="subtitle">
+      日本語を見て、<strong>英語</strong>を入力して Enter キー。<br />
+      制限時間なしの無限練習モード。
+    </div>
+
+    <div class="info-row">
+      <div>
+        <span class="label">Correct:</span>
+        <span class="value" id="scoreValue">0</span>
+      </div>
+      <div>
+        <span class="label">Attempts:</span>
+        <span class="value" id="attemptsValue">0</span>
+      </div>
+    </div>
+
+    <div class="word-display" id="currentWord">---</div>
+
+    <input
+      type="text"
+      id="inputField"
+      autocomplete="off"
+      placeholder="英語を入力して Enter"
+    />
+
+    <div id="message" class="message"></div>
+
+    <!-- feedback image -->
+    <div class="feedback-image-wrapper">
+      <img id="feedbackImage" class="feedback-image" src="" alt="" style="display: none;">
+    </div>
+
+    <div class="controls">
+      <button id="startBtn">Start / Reset</button>
+      <button id="skipBtn">Skip</button>
+    </div>
+  </div>
+
+  <script>
+    // boy expressions:
+    const CORRECT_NORMAL_IMG_SRC   = "boy-correct.png";           // normal correct
+    const CORRECT_COMBO_IMG_SRC    = "boy-super-happy.png";       // 3+ correct in a row
+    const WRONG_NORMAL_IMG_SRC     = "boy-disappointed.png";      // normal wrong
+    const WRONG_STREAK_IMG_SRC     = "boy-very-disappointed.png"; // >3 wrong in a row
+    const SKIP_IMG_SRC             = "boy-skip.png";              // when Skip is pressed
+
+    // New default JA → EN vocab list
+    const defaultPairs = [
+      { prompt: "紙", answer: "paper" },
+      { prompt: "女性", answer: "woman" },
+      { prompt: "現れる", answer: "appear" },
+      { prompt: "ひまな、自由な", answer: "free" },
+      { prompt: "わくわくさせるような", answer: "exciting" },
+      { prompt: "怒った", answer: "angry" },
+      { prompt: "明日", answer: "tomorrow" },
+      { prompt: "いそがしい", answer: "busy" },
+      { prompt: "旅行する", answer: "travel" },
+      { prompt: "ボランティア", answer: "volunteer" },
+      { prompt: "病院", answer: "hospital" },
+      { prompt: "建物", answer: "building" },
+      { prompt: "おかしな", answer: "funny" },
+      { prompt: "計画、予定", answer: "plan" },
+      { prompt: "･･･を借りる", answer: "borrow" },
+      { prompt: "図書館", answer: "library" },
+      { prompt: "･･･を買う", answer: "buy" },
+      { prompt: "尊敬する", answer: "respect" }
+    ];
+
+    const scoreValue = document.getElementById("scoreValue");
+    const attemptsValue = document.getElementById("attemptsValue");
+    const currentWordEl = document.getElementById("currentWord");
+    const inputField = document.getElementById("inputField");
+    const messageEl = document.getElementById("message");
+    const startBtn = document.getElementById("startBtn");
+    const skipBtn = document.getElementById("skipBtn");
+    const feedbackImage = document.getElementById("feedbackImage");
+
+    let pairs = [];
+    let currentPair = null;
+    let score = 0;
+    let attempts = 0;
+    let gameRunning = false;
+
+    // streak counters
+    let correctStreak = 0;
+    let wrongStreak = 0;
+
+    // optional: read ?wordListParam=日本語:english,...
+    function getPairsFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const listParam = params.get("wordListParam");
+      if (!listParam) return null;
+
+      const items = listParam
+        .split(",")
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      const parsed = items.map(item => {
+        const [left, right] = item.split(":");
+        if (!right) return { prompt: left, answer: left };
+        return { prompt: left, answer: right };
+      });
+
+      return parsed.length ? parsed : null;
+    }
+
+    function hideFeedbackImage() {
+      feedbackImage.style.display = "none";
+      feedbackImage.src = "";
+    }
+
+    function showFeedbackImage(src) {
+      feedbackImage.src = src;
+      feedbackImage.style.display = "block";
+    }
+
+    function pickRandomPair() {
+      if (pairs.length === 0) {
+        currentPair = null;
+        currentWordEl.textContent = "---";
+        return;
+      }
+      const idx = Math.floor(Math.random() * pairs.length);
+      currentPair = pairs[idx];
+      currentWordEl.textContent = currentPair.prompt;
+    }
+
+    function resetGameState() {
+      const fromUrl = getPairsFromUrl();
+      pairs = fromUrl || defaultPairs.slice();
+
+      score = 0;
+      attempts = 0;
+      correctStreak = 0;
+      wrongStreak = 0;
+
+      scoreValue.textContent = score;
+      attemptsValue.textContent = attempts;
+      messageEl.textContent = "";
+      messageEl.className = "message";
+      hideFeedbackImage();
+      pickRandomPair();
+      inputField.value = "";
+    }
+
+    function startGame() {
+      resetGameState();
+      gameRunning = true;
+      inputField.focus();
+    }
+
+    function handleAnswer(typed) {
+      if (!currentPair) return;
+
+      attempts++;
+      attemptsValue.textContent = attempts;
+
+      const typedLower = typed.toLowerCase().trim();
+      const answerLower = currentPair.answer.toLowerCase().trim();
+
+      if (typedLower === answerLower) {
+        // correct
+        score++;
+        scoreValue.textContent = score;
+
+        correctStreak++;
+        wrongStreak = 0;
+
+        if (correctStreak >= 3) {
+          messageEl.textContent = `Good! ${correctStreak} combo!`;
+          showFeedbackImage(CORRECT_COMBO_IMG_SRC);
+        } else {
+          messageEl.textContent = "Good!";
+          showFeedbackImage(CORRECT_NORMAL_IMG_SRC);
+        }
+
+        messageEl.className = "message ok";
+      } else {
+        // wrong
+        wrongStreak++;
+        correctStreak = 0;
+
+        messageEl.textContent =
+          `Wrong: "${typed}"（正解: ${currentPair.answer}）`;
+
+        if (wrongStreak > 3) { // 4+ wrong in a row
+          showFeedbackImage(WRONG_STREAK_IMG_SRC);
+        } else {
+          showFeedbackImage(WRONG_NORMAL_IMG_SRC);
+        }
+
+        messageEl.className = "message error";
+      }
+
+      pickRandomPair();
+    }
+
+    inputField.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && gameRunning) {
+        const typed = inputField.value;
+        if (!typed.trim()) return;
+        handleAnswer(typed);
+        inputField.value = "";
+      }
+    });
+
+    startBtn.addEventListener("click", () => {
+      startGame();
+    });
+
+    skipBtn.addEventListener("click", () => {
+      if (!gameRunning) return;
+      messageEl.textContent = "Skipped.";
+      messageEl.className = "message";
+      // show skip image, reset streaks
+      showFeedbackImage(SKIP_IMG_SRC);
+      correctStreak = 0;
+      wrongStreak = 0;
+      pickRandomPair();
+      inputField.value = "";
+      inputField.focus();
+    });
+
+    // initial state
+    resetGameState();
+  </script>
+</body>
+</html>
